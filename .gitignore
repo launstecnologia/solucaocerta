@@ -32,5 +32,11 @@ desktop.ini
 /database/
 /uploads/
 
+# Credenciais e chaves
+cron/*.json
+*.json
+!composer.json
+!package.json
+
 # Cookies
 cookies.txt
