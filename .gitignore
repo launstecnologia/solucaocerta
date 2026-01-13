@@ -1,0 +1,36 @@
+﻿# Arquivos de ambiente
+.env
+.env.local
+.env.*.local
+
+# Vendor (dependências)
+/vendor/
+
+# Logs
+*.log
+*.txt
+!README.txt
+
+# Arquivos temporários
+*.tmp
+*.temp
+*.cache
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Pastas do projeto
+/database/
+/uploads/
+
+# Cookies
+cookies.txt

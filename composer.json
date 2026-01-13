@@ -1,0 +1,7 @@
+{
+    "require": {
+        "google/apiclient": "^2.18",
+        "setasign/fpdf": "^1.8",
+        "phpmailer/phpmailer": "^7.0"
+    }
+}
