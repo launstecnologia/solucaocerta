@@ -9,6 +9,8 @@ $stmt_cliente->bind_param("i", $id_cliente);
 $stmt_cliente->execute();
 $result_cliente = $stmt_cliente->get_result();
 $cliente = $result_cliente->fetch_assoc();
+$result_cliente->close();
+$stmt_cliente->close();
 
 // Buscar informações dos produtos
 function getProductDetails($conn, $sql, $id_cliente)
@@ -16,7 +18,11 @@ function getProductDetails($conn, $sql, $id_cliente)
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("i", $id_cliente);
     $stmt->execute();
-    return $stmt->get_result()->fetch_assoc();
+    $result = $stmt->get_result();
+    $data = $result->fetch_assoc();
+    $result->close();
+    $stmt->close();
+    return $data;
 }
 
 $brasil_card = getProductDetails($conn, "SELECT * FROM brasil_card WHERE id_cliente = ?", $id_cliente);
@@ -29,7 +35,6 @@ $fliper = getProductDetails($conn, "SELECT * FROM fliper WHERE id_cliente = ?", 
 $emprestimo = getProductDetails($conn, "SELECT * FROM emprestimo WHERE id_cliente = ?", $id_cliente);
 $parcela_facil = getProductDetails($conn, "SELECT * FROM parcela_facil WHERE id_cliente = ?", $id_cliente);
 $boltcard = getProductDetails($conn, "SELECT * FROM boltcard WHERE id_cliente = ?", $id_cliente);
-$parcelex = getProductDetails($conn, "SELECT * FROM parcelex WHERE id_cliente = ?", $id_cliente);
 $parcelex = getProductDetails($conn, "SELECT * FROM parcelex WHERE id_cliente = ?", $id_cliente);
 
 // Buscar representantes do cliente
@@ -44,7 +49,36 @@ $representantes = [];
 while ($row = $result_representantes->fetch_assoc()) {
     $representantes[] = $row['nome'];
 }
+$result_representantes->close();
+$stmt_representantes->close();
 
+// Buscar faturamento Brasil Card do cliente
+$sql_fat_brasil_card = "SELECT 
+    mes,
+    ano,
+    modalidade,
+    popular,
+    cdc,
+    aprovadas,
+    negadas,
+    restricoes,
+    pendente,
+    cancelado,
+    total,
+    date_update
+FROM fat_brasil_card 
+WHERE id_cli = ? 
+ORDER BY ano DESC, mes DESC";
+$stmt_fat_brasil_card = $conn->prepare($sql_fat_brasil_card);
+$stmt_fat_brasil_card->bind_param("i", $id_cliente);
+$stmt_fat_brasil_card->execute();
+$result_fat_brasil_card = $stmt_fat_brasil_card->get_result();
+$faturamentos_brasil_card = [];
+while ($row = $result_fat_brasil_card->fetch_assoc()) {
+    $faturamentos_brasil_card[] = $row;
+}
+$result_fat_brasil_card->close();
+$stmt_fat_brasil_card->close();
 
 //Exibir documentos
 // Consulta para buscar todos os documentos associados ao cliente
@@ -969,6 +1003,64 @@ include '../includes/header.php';
     </div>
 
 
+    <!-- Faturamento Brasil Card -->
+    <?php if (!empty($faturamentos_brasil_card)): ?>
+    <div class="client-info-card">
+        <h4 class="section-title">
+            <i class="fas fa-chart-line me-2"></i>Faturamento Brasil Card
+        </h4>
+        
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th><i class="fas fa-calendar me-1"></i>Competência</th>
+                        <th><i class="fas fa-tag me-1"></i>Modalidade</th>
+                        <th><i class="fas fa-credit-card me-1"></i>Popular</th>
+                        <th><i class="fas fa-dollar-sign me-1"></i>CDC</th>
+                        <th><i class="fas fa-check-circle me-1"></i>Aprovadas</th>
+                        <th><i class="fas fa-times-circle me-1"></i>Negadas</th>
+                        <th><i class="fas fa-exclamation-triangle me-1"></i>Restrições</th>
+                        <th><i class="fas fa-clock me-1"></i>Pendente</th>
+                        <th><i class="fas fa-ban me-1"></i>Cancelado</th>
+                        <th><i class="fas fa-list me-1"></i>Total</th>
+                        <th><i class="fas fa-calendar-alt me-1"></i>Atualização</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($faturamentos_brasil_card as $fat): 
+                        $mes_nome = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+                        $competencia = str_pad($fat['mes'], 2, '0', STR_PAD_LEFT) . '/' . $fat['ano'];
+                        $cdc_formatado = number_format((float)$fat['cdc'], 2, ',', '.');
+                    ?>
+                        <tr>
+                            <td><strong><?php echo $competencia; ?></strong></td>
+                            <td>
+                                <span class="badge bg-<?php echo $fat['modalidade'] == 'CDC' ? 'success' : 'info'; ?>">
+                                    <?php echo htmlspecialchars($fat['modalidade']); ?>
+                                </span>
+                            </td>
+                            <td><?php echo $fat['popular'] ?? 0; ?></td>
+                            <td><strong>R$ <?php echo $cdc_formatado; ?></strong></td>
+                            <td><span class="badge bg-success"><?php echo $fat['aprovadas'] ?? 0; ?></span></td>
+                            <td><span class="badge bg-danger"><?php echo $fat['negadas'] ?? 0; ?></span></td>
+                            <td><span class="badge bg-warning"><?php echo $fat['restricoes'] ?? 0; ?></span></td>
+                            <td><span class="badge bg-info"><?php echo $fat['pendente'] ?? 0; ?></span></td>
+                            <td><span class="badge bg-secondary"><?php echo $fat['cancelado'] ?? 0; ?></span></td>
+                            <td><strong><?php echo $fat['total'] ?? 0; ?></strong></td>
+                            <td>
+                                <small class="text-muted">
+                                    <?php echo $fat['date_update'] ? date('d/m/Y H:i', strtotime($fat['date_update'])) : '-'; ?>
+                                </small>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Documentos do Cliente -->
     <div class="client-info-card">
         <h4 class="section-title">
@@ -1027,6 +1119,137 @@ include '../includes/header.php';
             <div class="text-center text-muted py-4">
                 <i class="fas fa-file-alt fa-3x mb-3"></i>
                 <p>Nenhum documento encontrado para este cliente.</p>
+            </div>
+        <?php endif; ?>
+    </div>
+
+    <!-- Tickets/Chamados do Cliente -->
+    <?php
+    // Buscar tickets do cliente
+    $sql_tickets = "SELECT t.id, t.titulo, t.descricao, t.data_criacao, t.data_retorno, 
+                           s.status_name, u.nome as nome_usuario,
+                           (SELECT COUNT(*) FROM ticket_responses WHERE id_ticket = t.id) as total_respostas
+                    FROM tickets t 
+                    JOIN ticket_status s ON t.id_status = s.id
+                    JOIN usuario u ON t.id_usuario = u.id
+                    WHERE t.id_cliente = ?
+                    ORDER BY t.data_criacao DESC";
+    $stmt_tickets = $conn->prepare($sql_tickets);
+    $stmt_tickets->bind_param("i", $id_cliente);
+    $stmt_tickets->execute();
+    $result_tickets = $stmt_tickets->get_result();
+    $tickets = [];
+    while ($row = $result_tickets->fetch_assoc()) {
+        $tickets[] = $row;
+    }
+    $stmt_tickets->close();
+    ?>
+    
+    <div class="client-info-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="section-title mb-0">
+                <i class="fas fa-ticket-alt me-2"></i>Chamados/Tickets
+            </h4>
+            <a href="../ticket/create_ticket.php?id_cliente=<?php echo $id_cliente; ?>" class="btn btn-primary btn-modern">
+                <i class="fas fa-plus me-1"></i> Novo Chamado
+            </a>
+        </div>
+        
+        <?php if (!empty($tickets)): ?>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th><i class="fas fa-hashtag me-1"></i>ID</th>
+                            <th><i class="fas fa-heading me-1"></i>Título</th>
+                            <th><i class="fas fa-info-circle me-1"></i>Status</th>
+                            <th><i class="fas fa-user me-1"></i>Criado por</th>
+                            <th><i class="fas fa-calendar me-1"></i>Data Criação</th>
+                            <th><i class="fas fa-clock me-1"></i>Data Retorno</th>
+                            <th><i class="fas fa-comments me-1"></i>Respostas</th>
+                            <th><i class="fas fa-cogs me-1"></i>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($tickets as $ticket): 
+                            $dataRetornoClass = '';
+                            $dataRetornoTexto = '';
+                            if ($ticket['data_retorno']) {
+                                $dataRetorno = new DateTime($ticket['data_retorno']);
+                                $agora = new DateTime();
+                                $minutosRestantes = ($dataRetorno->getTimestamp() - $agora->getTimestamp()) / 60;
+                                
+                                if ($minutosRestantes < 0) {
+                                    $dataRetornoClass = 'badge bg-danger';
+                                    $dataRetornoTexto = '⚠️ Passou';
+                                } elseif ($minutosRestantes <= 60) {
+                                    $dataRetornoClass = 'badge bg-danger';
+                                    $dataRetornoTexto = '🔴 ' . round($minutosRestantes) . ' min';
+                                } elseif ($minutosRestantes <= 1440) {
+                                    $dataRetornoClass = 'badge bg-warning';
+                                    $dataRetornoTexto = '⏰ ' . round($minutosRestantes / 60) . 'h';
+                                } else {
+                                    $dataRetornoClass = 'badge bg-info';
+                                    $dataRetornoTexto = date('d/m/Y H:i', strtotime($ticket['data_retorno']));
+                                }
+                            }
+                            
+                            // Determinar cor do status
+                            $statusClass = 'badge bg-secondary';
+                            $statusLower = strtolower($ticket['status_name']);
+                            if (strpos($statusLower, 'aberto') !== false || strpos($statusLower, 'pendente') !== false) {
+                                $statusClass = 'badge bg-warning';
+                            } elseif (strpos($statusLower, 'em andamento') !== false || strpos($statusLower, 'processando') !== false) {
+                                $statusClass = 'badge bg-info';
+                            } elseif (strpos($statusLower, 'resolvido') !== false || strpos($statusLower, 'fechado') !== false || strpos($statusLower, 'concluído') !== false) {
+                                $statusClass = 'badge bg-success';
+                            } elseif (strpos($statusLower, 'cancelado') !== false) {
+                                $statusClass = 'badge bg-danger';
+                            }
+                        ?>
+                            <tr>
+                                <td><strong>#<?php echo $ticket['id']; ?></strong></td>
+                                <td>
+                                    <strong><?php echo htmlspecialchars($ticket['titulo']); ?></strong>
+                                    <?php if (strlen($ticket['descricao']) > 50): ?>
+                                        <br><small class="text-muted"><?php echo htmlspecialchars(substr($ticket['descricao'], 0, 50)) . '...'; ?></small>
+                                    <?php else: ?>
+                                        <br><small class="text-muted"><?php echo htmlspecialchars($ticket['descricao']); ?></small>
+                                    <?php endif; ?>
+                                </td>
+                                <td><span class="<?php echo $statusClass; ?>"><?php echo htmlspecialchars($ticket['status_name']); ?></span></td>
+                                <td><?php echo htmlspecialchars($ticket['nome_usuario']); ?></td>
+                                <td><?php echo date('d/m/Y H:i', strtotime($ticket['data_criacao'])); ?></td>
+                                <td>
+                                    <?php if ($ticket['data_retorno']): ?>
+                                        <span class="<?php echo $dataRetornoClass; ?>"><?php echo $dataRetornoTexto; ?></span>
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary"><?php echo $ticket['total_respostas']; ?> resposta(s)</span>
+                                </td>
+                                <td>
+                                    <a href="../ticket/view_ticket.php?id=<?php echo $ticket['id']; ?>" class="btn btn-info btn-sm btn-modern" target="_blank">
+                                        <i class="fas fa-eye me-1"></i> Abrir
+                                    </a>
+                                    <a href="../ticket/edit_ticket.php?id=<?php echo $ticket['id']; ?>" class="btn btn-warning btn-sm btn-modern" target="_blank">
+                                        <i class="fas fa-edit me-1"></i> Editar
+                                    </a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php else: ?>
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-ticket-alt fa-3x mb-3"></i>
+                <p>Nenhum chamado/ticket encontrado para este cliente.</p>
+                <a href="../ticket/create_ticket.php?id_cliente=<?php echo $id_cliente; ?>" class="btn btn-primary btn-modern mt-2">
+                    <i class="fas fa-plus me-1"></i> Criar Primeiro Chamado
+                </a>
             </div>
         <?php endif; ?>
     </div>
@@ -1092,6 +1315,14 @@ include '../includes/header.php';
                     <div class="mb-3">
                         <label for="senha" class="form-label">Senha</label>
                         <input type="password" class="form-control" name="senha" id="senha" value="<?php echo $fgts['senha']; ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label for="cadastro_financeira" class="form-label">Cadastro na Financeira</label>
+                        <input type="text" class="form-control" name="cadastro_financeira" id="cadastro_financeira" value="<?php echo $fgts['cadastro_financeira'] ?? ''; ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label for="data_liberacao_pdv" class="form-label">Data de Liberação PDV</label>
+                        <input type="date" class="form-control" name="data_liberacao_pdv" id="data_liberacao_pdv" value="<?php echo $fgts['data_liberacao_pdv'] ?? ''; ?>">
                     </div>
                     <div class="mb-3">
                         <label for="status" class="form-label">Status</label>
@@ -1165,6 +1396,18 @@ include '../includes/header.php';
                     <div class="mb-3">
                         <label for="plano" class="form-label">Plano</label>
                         <input type="text" class="form-control" name="plano" id="plano" value="<?php echo $pagseguro['plano']; ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label for="senha" class="form-label">Senha</label>
+                        <input type="password" class="form-control" name="senha" id="senha" value="<?php echo $pagseguro['senha'] ?? ''; ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label for="cadastro_financeira" class="form-label">Cadastro na Financeira</label>
+                        <input type="text" class="form-control" name="cadastro_financeira" id="cadastro_financeira" value="<?php echo $pagseguro['cadastro_financeira'] ?? ''; ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label for="data_liberacao_pdv" class="form-label">Data de Liberação PDV</label>
+                        <input type="date" class="form-control" name="data_liberacao_pdv" id="data_liberacao_pdv" value="<?php echo $pagseguro['data_liberacao_pdv'] ?? ''; ?>">
                     </div>
                     <div class="mb-3">
                         <label for="status" class="form-label">Status</label>
@@ -1271,6 +1514,22 @@ include '../includes/header.php';
                         <label for="taxa_antecipado" class="form-label">Taxa Antecipado</label>
                         <input type="text" class="form-control" name="taxa_antecipado" id="taxa_antecipado" value="<?php echo $soufacil['taxa_antecipado'] ?? ''; ?>">
                     </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" name="email" id="email" value="<?php echo $soufacil['email'] ?? ''; ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label for="senha" class="form-label">Senha</label>
+                        <input type="password" class="form-control" name="senha" id="senha" value="<?php echo $soufacil['senha'] ?? ''; ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label for="cadastro_financeira" class="form-label">Cadastro na Financeira</label>
+                        <input type="text" class="form-control" name="cadastro_financeira" id="cadastro_financeira" value="<?php echo $soufacil['cadastro_financeira'] ?? ''; ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label for="data_liberacao_pdv" class="form-label">Data de Liberação PDV</label>
+                        <input type="date" class="form-control" name="data_liberacao_pdv" id="data_liberacao_pdv" value="<?php echo $soufacil['data_liberacao_pdv'] ?? ''; ?>">
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -1335,6 +1594,14 @@ include '../includes/header.php';
                         <label for="taxa_antecipado" class="form-label">Taxa Antecipado</label>
                         <input type="text" class="form-control" name="taxa_antecipado" id="taxa_antecipado" value="<?php echo $fliper['taxa_antecipado'] ?? ''; ?>">
                     </div>
+                    <div class="mb-3">
+                        <label for="cadastro_financeira" class="form-label">Cadastro na Financeira</label>
+                        <input type="text" class="form-control" name="cadastro_financeira" id="cadastro_financeira" value="<?php echo $fliper['cadastro_financeira'] ?? ''; ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label for="data_liberacao_pdv" class="form-label">Data de Liberação PDV</label>
+                        <input type="date" class="form-control" name="data_liberacao_pdv" id="data_liberacao_pdv" value="<?php echo $fliper['data_liberacao_pdv'] ?? ''; ?>">
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -1377,6 +1644,22 @@ include '../includes/header.php';
                     <div class="mb-3">
                         <label for="obs" class="form-label">Observações</label>
                         <textarea class="form-control" name="obs" id="obs" rows="3" placeholder="Observações sobre o plano"><?php echo $parcela_facil['obs'] ?? ''; ?></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" name="email" id="email" value="<?php echo $parcela_facil['email'] ?? ''; ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label for="senha" class="form-label">Senha</label>
+                        <input type="password" class="form-control" name="senha" id="senha" value="<?php echo $parcela_facil['senha'] ?? ''; ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label for="cadastro_financeira" class="form-label">Cadastro na Financeira</label>
+                        <input type="text" class="form-control" name="cadastro_financeira" id="cadastro_financeira" value="<?php echo $parcela_facil['cadastro_financeira'] ?? ''; ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label for="data_liberacao_pdv" class="form-label">Data de Liberação PDV</label>
+                        <input type="date" class="form-control" name="data_liberacao_pdv" id="data_liberacao_pdv" value="<?php echo $parcela_facil['data_liberacao_pdv'] ?? ''; ?>">
                     </div>
                 </form>
             </div>
@@ -1439,6 +1722,14 @@ include '../includes/header.php';
                     <div class="mb-3">
                         <label for="obs" class="form-label">Observações</label>
                         <textarea class="form-control" name="obs" id="obs" rows="3" placeholder="Observações adicionais"><?php echo $boltcard['obs'] ?? ''; ?></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cadastro_financeira" class="form-label">Cadastro na Financeira</label>
+                        <input type="text" class="form-control" name="cadastro_financeira" id="cadastro_financeira" value="<?php echo $boltcard['cadastro_financeira'] ?? ''; ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label for="data_liberacao_pdv" class="form-label">Data de Liberação PDV</label>
+                        <input type="date" class="form-control" name="data_liberacao_pdv" id="data_liberacao_pdv" value="<?php echo $boltcard['data_liberacao_pdv'] ?? ''; ?>">
                     </div>
                 </form>
             </div>

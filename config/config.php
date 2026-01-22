@@ -14,19 +14,97 @@ function getRequiredEnv($key, $default = null) {
     return $value !== false ? $value : $default;
 }
 
-// Configurações do Banco de Dados
-$servername = getRequiredEnv('DB_HOST');
-$username = getRequiredEnv('DB_USER');
-$password = getRequiredEnv('DB_PASS');
-$dbname = getRequiredEnv('DB_NAME');
-
-// Cria a conexão
-$conn = new mysqli($servername, $username, $password, $dbname);
-
-// Verifica a conexão
-if ($conn->connect_error) {
-    die("Conexão falhou: " . $conn->connect_error);
+/**
+ * Classe DB - Singleton para gerenciar conexão MySQL
+ * Garante apenas 1 conexão por request
+ * NUNCA fecha a conexão, apenas os statements
+ */
+if (!class_exists('DB')) {
+    class DB {
+        private static ?mysqli $conn = null;
+        
+        /**
+         * Obtém a conexão única (Singleton)
+         * @return mysqli
+         */
+        public static function conn(): mysqli {
+            // Se já existe conexão e está válida, reutiliza
+            if (self::$conn !== null) {
+                // Verifica se a conexão ainda está ativa
+                if (self::$conn->ping()) {
+                    return self::$conn;
+                } else {
+                    // Conexão foi perdida, reseta para criar nova
+                    self::$conn = null;
+                }
+            }
+            
+            // Cria nova conexão apenas se não existir
+            if (self::$conn === null) {
+                $servername = getRequiredEnv('DB_HOST');
+                $username = getRequiredEnv('DB_USER');
+                $password = getRequiredEnv('DB_PASS');
+                $dbname = getRequiredEnv('DB_NAME');
+                
+                // Tenta conectar com timeout reduzido para evitar travamentos
+                $conn = @new mysqli($servername, $username, $password, $dbname);
+                
+                // Verifica a conexão
+                if ($conn->connect_error) {
+                    $error_msg = $conn->connect_error;
+                    
+                    // Se for erro de muitas conexões
+                    if (strpos($error_msg, 'max_user_connections') !== false) {
+                        die("ERRO: Muitas conexões ativas no banco de dados.<br><br>" .
+                            "<strong>Solução:</strong><br>" .
+                            "1. Execute o script SQL: <code>database/kill_old_connections.sql</code><br>" .
+                            "2. Ou execute no MySQL:<br>" .
+                            "<code>KILL QUERY WHERE Command = 'Sleep' AND Time > 300;</code><br><br>" .
+                            "3. Aguarde alguns segundos e recarregue a página.<br><br>" .
+                            "Erro técnico: " . htmlspecialchars($error_msg));
+                    }
+                    
+                    die("Conexão falhou: " . htmlspecialchars($error_msg));
+                }
+                
+                // Configura charset e timeout
+                $conn->set_charset("utf8mb4");
+                $conn->query("SET SESSION wait_timeout = 60"); // Timeout de 60 segundos
+                $conn->query("SET SESSION interactive_timeout = 60");
+                
+                self::$conn = $conn;
+            }
+            
+            return self::$conn;
+        }
+        
+        /**
+         * Reseta a conexão (útil apenas para testes ou casos especiais)
+         * ATENÇÃO: Não deve ser usado em produção normal
+         */
+        public static function reset(): void {
+            if (self::$conn !== null) {
+                // NÃO fecha a conexão - apenas reseta a referência
+                // A conexão será fechada automaticamente pelo PHP ao final do script
+                self::$conn = null;
+            }
+        }
+    }
 }
+
+// Função auxiliar para compatibilidade com código existente
+if (!function_exists('getConnection')) {
+    function getConnection(): mysqli {
+        return DB::conn();
+    }
+}
+
+// Cria a variável global $conn para compatibilidade com código existente
+// Reutiliza a mesma conexão Singleton - só cria se não existir
+if (!isset($GLOBALS['db_conn']) || $GLOBALS['db_conn'] === null) {
+    $GLOBALS['db_conn'] = DB::conn();
+}
+$conn = $GLOBALS['db_conn'];
 
 // URL da aplicação
 $url = getRequiredEnv('APP_URL');
@@ -56,3 +134,4 @@ if ($debug) {
 }
 
 ?>
+

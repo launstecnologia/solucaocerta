@@ -92,6 +92,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         while ($row = $result->fetch_assoc()) {
             $data[] = $row;
         }
+        $result->close();
+        $stmt->close();
 
         $results[$table] = $data;
     }
