@@ -215,3 +215,7 @@ $paytimeFormatted = number_format($paytimeFaturamento, 2, ',', '.');
 <?php include 'includes/footer.php'; ?>
 
 <?php include 'includes/footer.php'; ?>
+
+<?php include 'includes/footer.php'; ?>
+
+<?php include 'includes/footer.php'; ?>

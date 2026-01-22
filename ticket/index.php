@@ -118,6 +118,7 @@ if ($result_status) {
     while ($row = $result_status->fetch_assoc()) {
         $statuses[] = $row;
     }
+    $result_status->close();
 } else {
     // Se não houver status, criar array vazio
     $statuses = [];
@@ -143,6 +144,7 @@ if ($stmt_retorno) {
     while ($row = $result_retorno->fetch_assoc()) {
         $tickets_retorno_hoje[] = $row;
     }
+    $result_retorno->close();
     $stmt_retorno->close();
 }
 ?>
@@ -362,6 +364,8 @@ if ($stmt_retorno) {
                             </td>
                         </tr>
                         <?php endwhile; 
+                        $result_tickets->close();
+                        $stmt_tickets->close();
                     else: ?>
                         <tr>
                             <td colspan="7" class="text-center py-4">
@@ -372,7 +376,14 @@ if ($stmt_retorno) {
                                 </a>
                             </td>
                         </tr>
-                    <?php endif; ?>
+                    <?php 
+                        if ($result_tickets) {
+                            $result_tickets->close();
+                        }
+                        if ($stmt_tickets) {
+                            $stmt_tickets->close();
+                        }
+                    endif; ?>
                 </tbody>
             </table>
         </div>

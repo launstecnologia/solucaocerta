@@ -10,7 +10,7 @@ function ticket_url($file) {
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $id_cliente = isset($_POST['id_cliente']) ? (int)$_POST['id_cliente'] : 0;
-    $id_usuario = $_SESSION['id'];
+    $id_usuario = isset($_SESSION['id']) ? (int)$_SESSION['id'] : 0;
     $id_status = isset($_POST['id_status']) ? (int)$_POST['id_status'] : 1;
     $titulo = trim($_POST['titulo']);
     $descricao = trim($_POST['descricao']);
@@ -22,13 +22,41 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         echo "<script>alert('Selecione um cliente.'); history.back();</script>";
         exit;
     }
+    
+    if ($id_usuario <= 0) {
+        echo "<script>alert('Erro: Usuário não identificado. Faça login novamente.'); window.location.href='../login/index.php';</script>";
+        exit;
+    }
+    
+    if (empty($titulo)) {
+        echo "<script>alert('O título é obrigatório.'); history.back();</script>";
+        exit;
+    }
+    
+    if (empty($descricao)) {
+        echo "<script>alert('A descrição é obrigatória.'); history.back();</script>";
+        exit;
+    }
 
     // Inserir ticket
-    $sql = "INSERT INTO tickets (id_cliente, id_usuario, id_status, titulo, descricao, data_retorno, data_criacao, data_atualizacao, notificado) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)";
+    $notificado = 0;
+    
+    // Construir query dinamicamente baseado se data_retorno é NULL
+    if ($data_retorno !== null) {
+        $sql = "INSERT INTO tickets (id_cliente, id_usuario, id_status, titulo, descricao, data_retorno, data_criacao, data_atualizacao, notificado) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    } else {
+        $sql = "INSERT INTO tickets (id_cliente, id_usuario, id_status, titulo, descricao, data_retorno, data_criacao, data_atualizacao, notificado) 
+                VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?)";
+    }
 
     if ($stmt = $conn->prepare($sql)) {
-        $stmt->bind_param("iiisssss", $id_cliente, $id_usuario, $id_status, $titulo, $descricao, $data_retorno, $data_criacao, $data_atualizacao);
+        if ($data_retorno !== null) {
+            $stmt->bind_param("iiisssssi", $id_cliente, $id_usuario, $id_status, $titulo, $descricao, $data_retorno, $data_criacao, $data_atualizacao, $notificado);
+        } else {
+            $stmt->bind_param("iiissssi", $id_cliente, $id_usuario, $id_status, $titulo, $descricao, $data_criacao, $data_atualizacao, $notificado);
+        }
+        
         if ($stmt->execute()) {
             $id_ticket = $stmt->insert_id;
             $stmt->close();
@@ -86,11 +114,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
 
             echo "<script>alert('Ticket criado com sucesso.'); window.location.href='" . ticket_url('index.php') . "';</script>";
+            exit;
         } else {
-            echo "<script>alert('Erro: " . $stmt->error . "'); history.back();</script>";
+            $error_msg = $stmt->error ? $stmt->error : 'Erro desconhecido ao executar query';
+            $stmt->close();
+            echo "<script>alert('Erro ao salvar ticket: " . addslashes($error_msg) . "'); history.back();</script>";
+            exit;
         }
     } else {
-        die("Erro na preparação: " . $conn->error);
+        $error_msg = $conn->error ? $conn->error : 'Erro desconhecido na preparação';
+        die("Erro na preparação da query: " . htmlspecialchars($error_msg));
     }
+} else {
+    echo "<script>alert('Método inválido.'); window.location.href='" . ticket_url('index.php') . "';</script>";
+    exit;
+}
 }
 ?>

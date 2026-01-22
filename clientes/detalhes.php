@@ -1135,14 +1135,19 @@ include '../includes/header.php';
                     WHERE t.id_cliente = ?
                     ORDER BY t.data_criacao DESC";
     $stmt_tickets = $conn->prepare($sql_tickets);
-    $stmt_tickets->bind_param("i", $id_cliente);
-    $stmt_tickets->execute();
-    $result_tickets = $stmt_tickets->get_result();
-    $tickets = [];
-    while ($row = $result_tickets->fetch_assoc()) {
-        $tickets[] = $row;
+    if ($stmt_tickets) {
+        $stmt_tickets->bind_param("i", $id_cliente);
+        $stmt_tickets->execute();
+        $result_tickets = $stmt_tickets->get_result();
+        $tickets = [];
+        while ($row = $result_tickets->fetch_assoc()) {
+            $tickets[] = $row;
+        }
+        $result_tickets->close();
+        $stmt_tickets->close();
+    } else {
+        $tickets = [];
     }
-    $stmt_tickets->close();
     ?>
     
     <div class="client-info-card">
