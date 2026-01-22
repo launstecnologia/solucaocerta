@@ -644,7 +644,7 @@ $status_list_brasilcard = [
                                 ?></small>
                             </td>
                             <td>
-                                <a href="clientes/detalhes.php?id=<?php echo $row['id']; ?>" class="btn btn-info">Detalhes</a>
+                                <a href="detalhes.php?id=<?php echo $row['id']; ?>" class="btn btn-info">Detalhes</a>
                             </td>
                         </tr>
                     <?php } ?>
