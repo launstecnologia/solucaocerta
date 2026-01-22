@@ -48,7 +48,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             echo "Erro na preparação: " . $conn->error;
         }
     }
-    $conn->close();
+    // NÃO fechar conexão - ela será reutilizada e fechada automaticamente pelo PHP ao final do script
 } else {
     echo "Método de requisição inválido.";
 }

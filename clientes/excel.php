@@ -177,5 +177,5 @@ while ($row = $result->fetch_assoc()) {
 }
 
 fclose($output);
-$conn->close();
+// NÃO fechar conexão - ela será reutilizada e fechada automaticamente pelo PHP ao final do script
 ?>

@@ -1,7 +1,12 @@
 <?php
 session_start();
-
 require_once '../config/config.php';
+
+// Função helper para gerar URLs corretas de tickets
+// Sempre retorna caminho relativo porque estamos dentro da pasta ticket/
+function ticket_url($file) {
+    return $file;
+}
 
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -16,7 +21,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if ($stmt = $conn->prepare($sql)) {
         $stmt->bind_param("iiss", $id_ticket, $id_usuario, $resposta, $data_resposta);
         if ($stmt->execute()) {
-            echo "<script>alert('Resposta enviada com sucesso.'); window.location.href='view_ticket.php?id=$id_ticket';</script>";
+            echo "<script>alert('Resposta enviada com sucesso.'); window.location.href='" . ticket_url("view_ticket.php?id=$id_ticket") . "';</script>";
         } else {
            echo "<script>alert('Erro: " . $stmt->error . "'); history.back();</script>";
         }

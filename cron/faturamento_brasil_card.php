@@ -8,9 +8,18 @@ require __DIR__ . '/../vendor/autoload.php';
 
 use Google\Client;
 use Google\Service\Sheets;
+use GuzzleHttp\Client as GuzzleClient;
 
 // Inicializar o cliente do Google para ler os dados do Google Sheets
 $client = new Client();
+
+// Configurar HTTP client com SSL desabilitado para resolver problemas de certificado
+$httpClient = new GuzzleClient([
+    'verify' => false, // Desabilita verificação SSL
+    'timeout' => 30
+]);
+
+$client->setHttpClient($httpClient);
 $client->setApplicationName('Google Sheets API PHP');
 $client->setScopes(Sheets::SPREADSHEETS_READONLY);
 $client->setAuthConfig('solucaocerta-d66249bd42d5.json');

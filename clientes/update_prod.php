@@ -25,12 +25,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_brasil_card']))
     $porcentagem = $_POST['porcentagem'];
     $pdv = $_POST['pdv'];
     $data_liberacao_pdv = $_POST['data_liberacao_pdv'];
+    $cadastro_financeira = $_POST['cadastro_financeira'] ?? '';
     $status = $_POST['status'];
     $obs = $_POST['obs'];
 
-    $sql = "UPDATE brasil_card SET referencia1=?, telefone1=?, referencia2=?, telefone2=?, private=?, porcentagem=?, pdv=?, data_liberacao_pdv=?, status=?, obs=? WHERE id_cliente=?";
-    $params = [$referencia1, $telefone1, $referencia2, $telefone2, $private, $porcentagem, $pdv, $data_liberacao_pdv, $status, $obs, $id_cliente];
-    $types = "ssssssssssi";
+    $sql = "UPDATE brasil_card SET referencia1=?, telefone1=?, referencia2=?, telefone2=?, private=?, porcentagem=?, pdv=?, data_liberacao_pdv=?, cadastro_financeira=?, status=?, obs=? WHERE id_cliente=?";
+    $params = [$referencia1, $telefone1, $referencia2, $telefone2, $private, $porcentagem, $pdv, $data_liberacao_pdv, $cadastro_financeira, $status, $obs, $id_cliente];
+    $types = "sssssssssssi";
 
     updateProduct($conn, $sql, $params, $types);
     echo "<script>alert('Dados do Brasil Card atualizados com sucesso.'); window.location.href='detalhes.php?id=$id_cliente';</script>";
@@ -57,12 +58,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_fgts'])) {
     $link = $_POST['link'];
     $email = $_POST['email'];
     $senha = $_POST['senha'];
+    $cadastro_financeira = $_POST['cadastro_financeira'] ?? '';
+    $data_liberacao_pdv = $_POST['data_liberacao_pdv'] ?? '';
     $status = $_POST['status'];
     $obs = $_POST['obs'];
 
-    $sql = "UPDATE fgts SET link=?, email=?, senha=?, status=?, obs=? WHERE id_cliente=?";
-    $params = [$link, $email, $senha, $status, $obs, $id_cliente];
-    $types = "sssssi";
+    $sql = "UPDATE fgts SET link=?, email=?, senha=?, cadastro_financeira=?, data_liberacao_pdv=?, status=?, obs=? WHERE id_cliente=?";
+    $params = [$link, $email, $senha, $cadastro_financeira, $data_liberacao_pdv, $status, $obs, $id_cliente];
+    $types = "sssssssi";
 
     updateProduct($conn, $sql, $params, $types);
     echo "<script>alert('Dados do FGTS atualizados com sucesso.'); window.location.href='detalhes.php?id=$id_cliente';</script>";
@@ -87,12 +90,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_pagseguro'])) {
     $id_cliente = $_POST['id_cliente'];
     $email = $_POST['email'];
     $plano = $_POST['plano'];
+    $senha = $_POST['senha'] ?? '';
+    $cadastro_financeira = $_POST['cadastro_financeira'] ?? '';
+    $data_liberacao_pdv = $_POST['data_liberacao_pdv'] ?? '';
     $status = $_POST['status'];
     $obs = $_POST['obs'];
 
-    $sql = "UPDATE pagseguro SET email=?, plano=?, status=?, obs=? WHERE id_cliente=?";
-    $params = [$email, $plano, $status, $obs, $id_cliente];
-    $types = "sssii";
+    $sql = "UPDATE pagseguro SET email=?, plano=?, senha=?, cadastro_financeira=?, data_liberacao_pdv=?, status=?, obs=? WHERE id_cliente=?";
+    $params = [$email, $plano, $senha, $cadastro_financeira, $data_liberacao_pdv, $status, $obs, $id_cliente];
+    $types = "sssssssi";
 
     updateProduct($conn, $sql, $params, $types);
     echo "<script>alert('Dados do PagSeguro atualizados com sucesso.'); window.location.href='detalhes.php?id=$id_cliente';</script>";
@@ -107,6 +113,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_soufacil'])) {
     $tipo_taxa = isset($_POST['tipo_taxa']) ? $_POST['tipo_taxa'] : null;
     $mensalidade = isset($_POST['mensalidade']) ? $_POST['mensalidade'] : null;
     $taxa_antecipado = isset($_POST['taxa_antecipado']) ? $_POST['taxa_antecipado'] : null;
+    $email = isset($_POST['email']) ? $_POST['email'] : null;
+    $senha = isset($_POST['senha']) ? $_POST['senha'] : null;
+    $cadastro_financeira = isset($_POST['cadastro_financeira']) ? $_POST['cadastro_financeira'] : null;
+    $data_liberacao_pdv = isset($_POST['data_liberacao_pdv']) ? $_POST['data_liberacao_pdv'] : null;
 
     // Construir a query dinamicamente com apenas campos válidos
     $set_parts = [];
@@ -149,6 +159,30 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_soufacil'])) {
         $types .= "s";
     }
     
+    if ($email !== null) {
+        $set_parts[] = "email=?";
+        $params[] = $email;
+        $types .= "s";
+    }
+    
+    if ($senha !== null) {
+        $set_parts[] = "senha=?";
+        $params[] = $senha;
+        $types .= "s";
+    }
+    
+    if ($cadastro_financeira !== null) {
+        $set_parts[] = "cadastro_financeira=?";
+        $params[] = $cadastro_financeira;
+        $types .= "s";
+    }
+    
+    if ($data_liberacao_pdv !== null) {
+        $set_parts[] = "data_liberacao_pdv=?";
+        $params[] = $data_liberacao_pdv;
+        $types .= "s";
+    }
+    
     if (!empty($set_parts)) {
         $params[] = $id_cliente;
         $types .= "i";
@@ -172,10 +206,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_fliper'])) {
     $tipo_taxa = $_POST['tipo_taxa'];
     $mensalidade = $_POST['mensalidade'];
     $taxa_antecipado = $_POST['taxa_antecipado'];
+    $cadastro_financeira = $_POST['cadastro_financeira'] ?? '';
+    $data_liberacao_pdv = $_POST['data_liberacao_pdv'] ?? '';
 
-    $sql = "UPDATE fliper SET email=?, senha=?, status=?, taxa_adm=?, condicoes=?, tipo_taxa=?, mensalidade=?, taxa_antecipado=? WHERE id_cliente=?";
-    $params = [$email, $senha, $status, $taxa_adm, $condicoes, $tipo_taxa, $mensalidade, $taxa_antecipado, $id_cliente];
-    $types = "ssssssssi";
+    $sql = "UPDATE fliper SET email=?, senha=?, status=?, taxa_adm=?, condicoes=?, tipo_taxa=?, mensalidade=?, taxa_antecipado=?, cadastro_financeira=?, data_liberacao_pdv=? WHERE id_cliente=?";
+    $params = [$email, $senha, $status, $taxa_adm, $condicoes, $tipo_taxa, $mensalidade, $taxa_antecipado, $cadastro_financeira, $data_liberacao_pdv, $id_cliente];
+    $types = "ssssssssssi";
 
     updateProduct($conn, $sql, $params, $types);
     echo "<script>alert('Dados do Fliper atualizados com sucesso.'); window.location.href='detalhes.php?id=$id_cliente';</script>";
@@ -189,10 +225,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_parcela_facil']
     $status = $_POST['status'];
     $plano = $_POST['plano'];
     $obs = $_POST['obs'];
+    $cadastro_financeira = $_POST['cadastro_financeira'] ?? '';
+    $data_liberacao_pdv = $_POST['data_liberacao_pdv'] ?? '';
 
-    $sql = "UPDATE parcela_facil SET email=?, senha=?, status=?, plano=?, obs=? WHERE id_cliente=?";
-    $params = [$email, $senha, $status, $plano, $obs, $id_cliente];
-    $types = "sssssi";
+    $sql = "UPDATE parcela_facil SET email=?, senha=?, status=?, plano=?, obs=?, cadastro_financeira=?, data_liberacao_pdv=? WHERE id_cliente=?";
+    $params = [$email, $senha, $status, $plano, $obs, $cadastro_financeira, $data_liberacao_pdv, $id_cliente];
+    $types = "sssssssi";
 
     updateProduct($conn, $sql, $params, $types);
     echo "<script>alert('Dados do Parcela Fácil atualizados com sucesso.'); window.location.href='detalhes.php?id=$id_cliente';</script>";
@@ -229,12 +267,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_parcelex'])) {
     $porcentagem = $_POST['porcentagem'] ?? '';
     $pdv = $_POST['pdv'] ?? '';
     $data_liberacao_pdv = $_POST['data_liberacao_pdv'] ?? '';
+    $cadastro_financeira = $_POST['cadastro_financeira'] ?? '';
     $status = $_POST['status'] ?? 'Pendente';
     $obs = $_POST['obs'] ?? '';
 
-    $sql = "UPDATE parcelex SET referencia1=?, telefone1=?, referencia2=?, telefone2=?, private=?, porcentagem=?, pdv=?, data_liberacao_pdv=?, status=?, obs=? WHERE id_cliente=?";
-    $params = [$referencia1, $telefone1, $referencia2, $telefone2, $private, $porcentagem, $pdv, $data_liberacao_pdv, $status, $obs, $id_cliente];
-    $types = "ssssssssssi";
+    $sql = "UPDATE parcelex SET referencia1=?, telefone1=?, referencia2=?, telefone2=?, private=?, porcentagem=?, pdv=?, data_liberacao_pdv=?, cadastro_financeira=?, status=?, obs=? WHERE id_cliente=?";
+    $params = [$referencia1, $telefone1, $referencia2, $telefone2, $private, $porcentagem, $pdv, $data_liberacao_pdv, $cadastro_financeira, $status, $obs, $id_cliente];
+    $types = "sssssssssssi";
 
     updateProduct($conn, $sql, $params, $types);
     echo "<script>alert('Dados do Parcelex atualizados com sucesso.'); window.location.href='detalhes.php?id=$id_cliente';</script>";

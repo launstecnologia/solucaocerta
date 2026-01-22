@@ -84,6 +84,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $fliper = isset($_POST['fliper']) ? 1 : 0;
     $parcela_facil = isset($_POST['parcela_facil']) ? 1 : 0;
     $boltcard = isset($_POST['boltcard']) ? 1 : 0;
+    $parcelex = isset($_POST['parcelex']) ? 1 : 0;
 
     // Representantes selecionados
     $representantes = isset($_POST['representantes']) ? $_POST['representantes'] : [];
@@ -99,13 +100,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         if ($stmt = $conn->prepare($sql)) {
 
-            $stmt->bind_param("sssssssssssssssssssssssssssssssssssssssssssssssssii", $tipo_pessoa, $cnpj, $razao_social, $nome_fantasia, $insc_est,
-            $adm_cpf, $adm_rg, $adm_nome, $adm_nacionalidade, $adm_est_civil, $adm_data_nasc,
-            $adm_end, $adm_numero, $adm_complemento, $adm_bairro, $adm_cidade, $adm_uf, $adm_cep,
-            $ramo_atividade, $telefone1, $telefone2, $email, $logradouro, $numero, $complemento, $bairro,
-            $cidade, $uf, $cep, $ger_nome, $ger_telefone1, $ger_email, $fin_nome, $fin_telefone1, $fin_email,
-            $valor, $valor_extenso, $banco, $agencia, $conta, $pix, $favorecido, $brasil_card,
-            $fgts, $pagseguro, $soufacil, $fliper, $parcela_facil, $boltcard, $parcelex, $id);
+            // 42 strings (s) + 9 inteiros (i) = 51 parâmetros
+            $types = str_repeat('s', 42) . str_repeat('i', 9);
+            $stmt->bind_param($types, 
+                $tipo_pessoa, $cnpj, $razao_social, $nome_fantasia, $insc_est,
+                $adm_cpf, $adm_rg, $adm_nome, $adm_nacionalidade, $adm_est_civil, $adm_data_nasc,
+                $adm_end, $adm_numero, $adm_complemento, $adm_bairro, $adm_cidade, $adm_uf, $adm_cep,
+                $ramo_atividade, $telefone1, $telefone2, $email, $logradouro, $numero, $complemento, $bairro,
+                $cidade, $uf, $cep, $ger_nome, $ger_telefone1, $ger_email, $fin_nome, $fin_telefone1, $fin_email,
+                $valor, $valor_extenso, $banco, $agencia, $conta, $pix, $favorecido, $brasil_card,
+                $fgts, $pagseguro, $soufacil, $fliper, $parcela_facil, $boltcard, $parcelex, $id);
 
             if ($stmt->execute()) {
                 // Atualizar ou inserir dados nos produtos correspondentes
@@ -186,8 +190,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         } else {
             die("Erro na preparação: " . $conn->error);
         }
-
-    $conn->close();
+        // Conexão será fechada automaticamente pelo shutdown handler
 } else {
     echo "Método de requisição inválido.";
 }

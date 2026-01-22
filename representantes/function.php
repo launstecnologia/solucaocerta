@@ -129,7 +129,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             echo "<script>alert('Representante já está cadastrado.'); history.back();</script>";
         }
     }
-    $conn->close();
+    // NÃO fechar conexão - ela será reutilizada e fechada automaticamente pelo PHP ao final do script
 } else {
     echo "Método de requisição inválido.";
 }

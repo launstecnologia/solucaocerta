@@ -4,14 +4,27 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
+// Habilitar output buffering para exibir em tempo real
+ob_start();
+
 // Autoload das dependências
 require __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../config/config.php';
 
 use Google\Client;
 use Google\Service\Sheets;
+use GuzzleHttp\Client as GuzzleClient;
 
 // Inicializa o cliente do Google Sheets
 $client = new Client();
+
+// Configurar HTTP client com SSL desabilitado para resolver problemas de certificado
+$httpClient = new GuzzleClient([
+    'verify' => false, // Desabilita verificação SSL
+    'timeout' => 30
+]);
+
+$client->setHttpClient($httpClient);
 $client->setApplicationName('Google Sheets API PHP');
 $client->setScopes(Sheets::SPREADSHEETS_READONLY);
 $client->setAuthConfig('solucaocerta-d66249bd42d5.json');
@@ -21,121 +34,267 @@ $service = new Sheets($client);
 // ID da planilha
 $spreadsheetId = '1J9Lr5k7i52w1frr8OY-0I2cFS8SzXIs-Xd9P2TiijQc';
 
-// Definir o intervalo de datas: dois anos para trás até a data atual
-$startPeriod = new DateTime('first day of February 2023');
-$endPeriod = new DateTime('last day of February 2025');
+// Definir o intervalo de datas: últimos dois anos a partir do mês atual
+$dataAtual = new DateTime();
+$mesAtual = (int)$dataAtual->format('m');
+$anoAtual = (int)$dataAtual->format('Y');
 
-// --- Parte 1: Ler os dados dos registros ---
-// Considerando que a coluna "R" contém as datas, "Z" contém a modalidade e "AC" e "AB" têm os valores de CDC e Popular.
-$dataRange = 'R12:AC';
-$responseData = $service->spreadsheets_values->get($spreadsheetId, $dataRange);
-$dataValues = $responseData->getValues();
+// Calcular data inicial: primeiro dia do mesmo mês, dois anos atrás
+// Exemplo: Se estamos em Janeiro/2026, processa de Janeiro/2024 até Janeiro/2026
+$startPeriod = new DateTime();
+$startPeriod->setDate($anoAtual - 2, $mesAtual, 1);
+$startPeriod->setTime(0, 0, 0);
 
-$popularSum = 0;
-$cdcSum = 0.0;
+// Data final: último dia do mês atual
+$endPeriod = new DateTime();
+$endPeriod->setDate($anoAtual, $mesAtual, $dataAtual->format('t')); // 't' retorna o último dia do mês
+$endPeriod->setTime(23, 59, 59);
 
-foreach ($dataValues as $row) {
-    if (isset($row[0]) && !empty($row[0])) {
-        // Converte a data (coluna "R", índice 0)
-        $rowDate = DateTime::createFromFormat('d/m/Y', $row[0]);
+echo "<h3>Processamento de Dados - Brasil Card (Comissão Agregada)</h3>";
+echo "<p><strong>Período:</strong> " . $startPeriod->format('01/m/Y') . " até " . $endPeriod->format('d/m/Y') . "</p>";
+echo "<p><strong>Mês atual do banco:</strong> " . str_pad($mesAtual, 2, '0', STR_PAD_LEFT) . "/" . $anoAtual . "</p><br>";
 
-        // Verifica se a data está no intervalo desejado
-        if ($rowDate && $rowDate >= $startPeriod && $rowDate <= $endPeriod) {
-            // Obtém a modalidade (coluna "Z", índice 8 no intervalo selecionado)
-            $modalidade = isset($row[8]) ? trim($row[8]) : '';
+// Lê os dados do Google Sheets (colunas A até AJ)
+$range = 'A11:AJ1000';
+try {
+    $response = $service->spreadsheets_values->get($spreadsheetId, $range);
+    $rows = $response->getValues();
 
-            // Verifica e soma os valores conforme a modalidade
-            if ($modalidade === 'CDC') {
-                $cdcValueRaw = isset($row[11]) ? $row[11] : '0'; // Coluna "AC" (índice 11 no intervalo)
-                $cdcValue = (float)str_replace(['R$', '.', ','], ['', '', '.'], $cdcValueRaw);
-                $cdcSum += $cdcValue;
-            } elseif ($modalidade === 'POPULAR') {
-                $popularValue = isset($row[10]) ? (int)$row[10] : 0; // Coluna "AB" (índice 10 no intervalo)
-                $popularSum += $popularValue;
-            }
+    if (empty($rows)) {
+        die("Nenhum dado encontrado no Google Sheets.");
+    }
+} catch (Exception $e) {
+    die("Erro ao acessar o Google Sheets: " . $e->getMessage());
+}
+
+// Conexão com o banco de dados usando config.php
+$conn = getConnection();
+
+echo "<p><strong>Total de linhas lidas da planilha:</strong> " . count($rows) . "</p>";
+flush();
+ob_flush();
+
+// Array para agregar dados por mês/ano
+// Estrutura: ['mes/ano' => ['popular' => soma, 'cdc' => soma]]
+$dadosAgregados = [];
+
+// Contadores
+$totalProcessados = 0;
+$linhasPuladas = 0;
+$linhasComData = 0;
+$linhasForaPeriodo = 0;
+$linhasDataInvalida = 0;
+
+// Processar as linhas do Google Sheets
+foreach ($rows as $index => $row) {
+    // Pular primeira linha (cabeçalho)
+    if ($index === 0) {
+        $linhasPuladas++;
+        continue;
+    }
+    
+    // Ignorar linhas vazias ou sem dados essenciais
+    if (empty($row) || !isset($row[17]) || empty($row[17])) {
+        $linhasPuladas++;
+        continue; // Pula se não tiver data (coluna R, índice 17)
+    }
+
+    // Extrair dados da linha
+    // Coluna R (índice 17): Data
+    $dataStr = trim($row[17]);
+    
+    // Pular se for cabeçalho ou vazio
+    if (empty($dataStr) || strtoupper($dataStr) === 'DATA') {
+        $linhasPuladas++;
+        continue;
+    }
+    
+    $linhasComData++;
+
+    // Tentar diferentes formatos de data
+    $rowDate = null;
+    $formatos = ['d/m/Y', 'Y-m-d', 'd-m-Y'];
+    foreach ($formatos as $formato) {
+        $rowDate = DateTime::createFromFormat($formato, $dataStr);
+        if ($rowDate !== false) {
+            break;
         }
     }
-}
 
-// --- Parte 2: Calcular as comissões ---
-$comissao_popular = $popularSum * 15;
-$comissao_cdc = $cdcSum * 0.02; // Exemplo de cálculo de comissão para CDC
-
-// --- Parte 3: Salvar ou atualizar os dados no banco de dados ---
-try {
-    $pdo = new PDO('mysql:host=localhost;dbname=solucaocerta_platform', 'solucaocerta_lrmonine', '2jMXpX5aBnqXaSDA8D5w');
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-    // Definir competência como o primeiro mês do período de análise (Fevereiro de 2023)
-    $mesCompetencia = $startPeriod->format('m');
-    $anoCompetencia = $startPeriod->format('Y');
-
-    // Verifica se já existe um registro para essa competência
-    $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM comissao_brasil_card WHERE mes_competencia = :mes AND ano_competencia = :ano");
-    $checkStmt->execute([
-        ':mes' => $mesCompetencia,
-        ':ano' => $anoCompetencia
-    ]);
-    $exists = $checkStmt->fetchColumn();
-
-    if ($exists > 0) {
-        // Atualiza o registro existente
-        $updateStmt = $pdo->prepare("
-            UPDATE comissao_brasil_card
-            SET qtd_popular = :qtd_popular,
-                comissao_popular = :comissao_popular,
-                fat_cdc = :fat_cdc,
-                comissao_cdc = :comissao_cdc,
-                data = :data
-            WHERE mes_competencia = :mes AND ano_competencia = :ano
-        ");
-
-        $updateStmt->execute([
-            ':qtd_popular' => $popularSum,
-            ':comissao_popular' => number_format($comissao_popular, 2, '.', ''),
-            ':fat_cdc' => number_format($cdcSum, 2, '.', ''),
-            ':comissao_cdc' => number_format($comissao_cdc, 2, '.', ''),
-            ':data' => date('Y-m-d H:i:s'),
-            ':mes' => $mesCompetencia,
-            ':ano' => $anoCompetencia
-        ]);
-
-        echo "Registro atualizado com sucesso!";
-    } else {
-        // Insere um novo registro
-        $insertStmt = $pdo->prepare("
-            INSERT INTO comissao_brasil_card (
-                mes_competencia,
-                ano_competencia,
-                qtd_popular,
-                comissao_popular,
-                fat_cdc,
-                comissao_cdc,
-                data
-            ) VALUES (
-                :mes_competencia,
-                :ano_competencia,
-                :qtd_popular,
-                :comissao_popular,
-                :fat_cdc,
-                :comissao_cdc,
-                :data
-            )
-        ");
-
-        $insertStmt->execute([
-            ':mes_competencia' => $mesCompetencia,
-            ':ano_competencia' => $anoCompetencia,
-            ':qtd_popular' => $popularSum,
-            ':comissao_popular' => number_format($comissao_popular, 2, '.', ''),
-            ':fat_cdc' => number_format($cdcSum, 2, '.', ''),
-            ':comissao_cdc' => number_format($comissao_cdc, 2, '.', ''),
-            ':data' => date('Y-m-d H:i:s')
-        ]);
-
-        echo "Dados inseridos com sucesso!";
+    // Se não conseguiu parsear, tenta como timestamp do Excel
+    if (!$rowDate && is_numeric($dataStr)) {
+        $rowDate = DateTime::createFromFormat('U', ($dataStr - 25569) * 86400);
     }
-} catch (PDOException $e) {
-    echo "Erro ao salvar dados: " . $e->getMessage();
+
+    if (!$rowDate) {
+        $linhasDataInvalida++;
+        continue; // Pula se não conseguir parsear a data
+    }
+
+    // Verifica se a data está no intervalo desejado
+    if ($rowDate < $startPeriod || $rowDate > $endPeriod) {
+        $linhasForaPeriodo++;
+        continue; // Fora do período, pula
+    }
+
+    // Extrair mês e ano da data
+    $mes = (int)$rowDate->format('m');
+    $ano = (int)$rowDate->format('Y');
+    $chaveMesAno = str_pad($mes, 2, '0', STR_PAD_LEFT) . '/' . $ano;
+
+    // Coluna AB (índice 27): Popular - quantidade de cartões
+    $popular = isset($row[27]) ? (int)$row[27] : 0;
+    
+    // Coluna AC (índice 28): IPCV - faturamento CDC
+    $ipcvRaw = isset($row[28]) ? trim($row[28]) : '0';
+    $ipcv = (float)str_replace(['R$', ' ', '.', ','], ['', '', '', '.'], $ipcvRaw);
+
+    // Inicializar array para este mês/ano se não existir
+    if (!isset($dadosAgregados[$chaveMesAno])) {
+        $dadosAgregados[$chaveMesAno] = [
+            'mes' => $mes,
+            'ano' => $ano,
+            'popular' => 0,
+            'ipcv' => 0.0
+        ];
+    }
+
+    // Somar TODOS os valores, independente da modalidade
+    $dadosAgregados[$chaveMesAno]['popular'] += $popular;
+    $dadosAgregados[$chaveMesAno]['ipcv'] += $ipcv;
+
+    $totalProcessados++;
 }
+
+echo "<p><strong>Linhas puladas (cabeçalho/vazias):</strong> $linhasPuladas</p>";
+echo "<p><strong>Linhas com data encontrada:</strong> $linhasComData</p>";
+echo "<p><strong>Linhas com data inválida:</strong> $linhasDataInvalida</p>";
+echo "<p><strong>Linhas fora do período:</strong> $linhasForaPeriodo</p>";
+echo "<p><strong>Total de linhas processadas:</strong> $totalProcessados</p>";
+echo "<p><strong>Meses/Anos encontrados:</strong> " . count($dadosAgregados) . "</p><br>";
+
+// Processar e salvar dados agregados por mês/ano
+$totalSalvos = 0;
+$totalAtualizados = 0;
+$erros = [];
+
+foreach ($dadosAgregados as $chaveMesAno => $dados) {
+    $mes = $dados['mes'];
+    $ano = $dados['ano'];
+    $popular = $dados['popular'];
+    $ipcv = $dados['ipcv']; // Faturamento CDC (IPCV)
+    
+    // Calcular comissões
+    $comissaoPopular = $popular * 15; // R$ 15,00 por cartão popular
+    $comissaoCdc = $ipcv * 0.02; // 2% do faturamento CDC (IPCV)
+    
+    // Formatar valores para string (a tabela usa VARCHAR)
+    $mesStr = str_pad($mes, 2, '0', STR_PAD_LEFT);
+    $anoStr = (string)$ano;
+    $popularStr = (string)$popular;
+    $comissaoPopularStr = number_format($comissaoPopular, 2, '.', '');
+    $ipcvStr = number_format($ipcv, 2, '.', ''); // Faturamento CDC (IPCV)
+    $comissaoCdcStr = number_format($comissaoCdc, 2, '.', '');
+    $dataAtualStr = date('Y-m-d H:i:s');
+    
+    // Verificar se já existe registro para este mês/ano
+    $checkStmt = $conn->prepare("SELECT id FROM comissao_brasil_card WHERE mes_competencia = ? AND ano_competencia = ?");
+    $checkStmt->bind_param("ss", $mesStr, $anoStr);
+    $checkStmt->execute();
+    $resultCheck = $checkStmt->get_result();
+    $existingId = null;
+    
+    if ($resultCheck && $resultCheck->num_rows > 0) {
+        $rowExisting = $resultCheck->fetch_assoc();
+        $existingId = $rowExisting['id'];
+    }
+    $checkStmt->close();
+
+    if ($existingId) {
+        // Atualizar registro existente
+        $updateStmt = $conn->prepare("
+            UPDATE comissao_brasil_card SET
+                qtd_popular = ?,
+                comissao_popular = ?,
+                fat_cdc = ?,
+                comissao_cdc = ?,
+                data = ?
+            WHERE id = ?
+        ");
+        
+        $updateStmt->bind_param("sssssi", 
+            $popularStr,
+            $comissaoPopularStr,
+            $ipcvStr,
+            $comissaoCdcStr,
+            $dataAtualStr,
+            $existingId
+        );
+        
+        if ($updateStmt->execute()) {
+            $totalAtualizados++;
+            echo "<p style='color: blue; font-size: 12px;'>↻ Atualizado: Mês $mesStr/$anoStr - Popular: $popular cartões, IPCV: R$ " . number_format($ipcv, 2, ',', '.') . ", Comissão Popular: R$ " . number_format($comissaoPopular, 2, ',', '.') . ", Comissão CDC: R$ " . number_format($comissaoCdc, 2, ',', '.') . "</p>\n";
+        } else {
+            $erroMsg = "Erro ao atualizar mês $mesStr/$anoStr: " . $updateStmt->error;
+            $erros[] = $erroMsg;
+            echo "<p style='color: red; font-size: 12px;'>✗ $erroMsg</p>\n";
+        }
+        $updateStmt->close();
+    } else {
+        // Inserir novo registro
+        $insertStmt = $conn->prepare("
+            INSERT INTO comissao_brasil_card (
+                mes_competencia, ano_competencia, qtd_popular, comissao_popular, 
+                fat_cdc, comissao_cdc, data
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ");
+        
+        $insertStmt->bind_param("sssssss", 
+            $mesStr,
+            $anoStr,
+            $popularStr,
+            $comissaoPopularStr,
+            $ipcvStr,
+            $comissaoCdcStr,
+            $dataAtualStr
+        );
+        
+        if ($insertStmt->execute()) {
+            $totalSalvos++;
+            echo "<p style='color: green; font-size: 12px;'>✓ Inserido: Mês $mesStr/$anoStr - Popular: $popular cartões, IPCV: R$ " . number_format($ipcv, 2, ',', '.') . ", Comissão Popular: R$ " . number_format($comissaoPopular, 2, ',', '.') . ", Comissão CDC: R$ " . number_format($comissaoCdc, 2, ',', '.') . "</p>\n";
+        } else {
+            $erroMsg = "Erro ao inserir mês $mesStr/$anoStr: " . $insertStmt->error;
+            $erros[] = $erroMsg;
+            echo "<p style='color: red; font-size: 12px;'>✗ $erroMsg</p>\n";
+        }
+        $insertStmt->close();
+    }
+    
+    flush();
+    ob_flush();
+}
+
+// NÃO fechar conexão - ela será reutilizada e fechada automaticamente pelo PHP ao final do script
+
+// Exibir resultados
+echo "<hr>";
+echo "<h3>Processamento Concluído!</h3>";
+echo "<p><strong>Total de linhas processadas:</strong> $totalProcessados</p>";
+echo "<p><strong>Meses/Anos processados:</strong> " . count($dadosAgregados) . "</p>";
+echo "<p><strong>Novos registros salvos:</strong> $totalSalvos</p>";
+echo "<p><strong>Registros atualizados:</strong> $totalAtualizados</p>";
+echo "<p><strong>Total de registros processados com sucesso:</strong> " . ($totalSalvos + $totalAtualizados) . "</p>";
+
+if (!empty($erros)) {
+    echo "<h4>Erros encontrados:</h4>";
+    echo "<ul>";
+    foreach (array_slice($erros, 0, 20) as $erro) {
+        echo "<li>" . htmlspecialchars($erro) . "</li>";
+    }
+    if (count($erros) > 20) {
+        echo "<li>... e mais " . (count($erros) - 20) . " erros</li>";
+    }
+    echo "</ul>";
+}
+
 ?>

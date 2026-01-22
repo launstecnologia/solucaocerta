@@ -26,7 +26,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         echo "Erro na preparação: " . $conn->error;
     }
 
-    $conn->close();
+    // NÃO fechar conexão - ela será reutilizada e fechada automaticamente pelo PHP ao final do script
     header("Location: index.php");
 } else {
     echo "Método de requisição inválido.";

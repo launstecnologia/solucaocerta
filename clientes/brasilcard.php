@@ -58,6 +58,10 @@
                         <input type="date" class="form-control" name="data_liberacao_pdv" id="data_liberacao_pdv" value="<?php echo $brasil_card['data_liberacao_pdv']; ?>">
                     </div>
                     <div class="mb-3">
+                        <label for="cadastro_financeira" class="form-label">Cadastro na Financeira</label>
+                        <input type="text" class="form-control" name="cadastro_financeira" id="cadastro_financeira" value="<?php echo $brasil_card['cadastro_financeira'] ?? ''; ?>">
+                    </div>
+                    <div class="mb-3">
                         <label for="status" class="form-label">Status</label>
                         <select class="form-select" name="status" id="status">
                             <option value="Pendente" <?php echo (isset($brasil_card['status']) && $brasil_card['status'] == 'Pendente') ? 'selected' : (!isset($brasil_card['status']) ? 'selected' : ''); ?>>Pendente</option>

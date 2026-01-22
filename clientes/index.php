@@ -6,60 +6,67 @@ require_once '../config/config.php';
 include '../includes/header.php';
 
 
-// Função para obter os produtos associados a um cliente
+// Função para obter os produtos associados a um cliente com suas datas
 function getProdutos($conn, $cliente_id)
 {
     $produtos = [];
-
-    $sql_brasil_card = "SELECT * FROM brasil_card WHERE id_cliente = $cliente_id";
-    $result_brasil_card = $conn->query($sql_brasil_card);
-    if ($result_brasil_card->num_rows > 0) {
-        $produtos[] = "<img src='../assets/images/logos/icone_brasilcard.png' alt='Brasil Card' width='30'>";
+    
+    // Array com produtos, suas tabelas e ícones
+    $produtos_config = [
+        ['tabela' => 'brasil_card', 'nome' => 'Brasil Card', 'icone' => '../assets/images/logos/icone_brasilcard.png'],
+        ['tabela' => 'parcelex', 'nome' => 'Parcelex', 'icone' => '../assets/images/logos/parcelex.svg'],
+        ['tabela' => 'fgts', 'nome' => 'FGTS', 'icone' => '../assets/images/logos/icone_fgts.png'],
+        ['tabela' => 'pagseguro', 'nome' => 'PagSeguro', 'icone' => '../assets/images/logos/icone_pagseguro.png'],
+        ['tabela' => 'soufacil', 'nome' => 'Sou Fácil', 'icone' => '../assets/images/logos/icon_soufacil.png'],
+        ['tabela' => 'fliper', 'nome' => 'Fliper', 'icone' => '../assets/images/logos/icon_flip.png'],
+        ['tabela' => 'parcela_facil', 'nome' => 'Parcela Fácil', 'icone' => '../assets/images/logos/icon_parcele.png'],
+        ['tabela' => 'boltcard', 'nome' => 'BoltCard', 'icone' => '../assets/images/logos/icon_bolt.png']
+    ];
+    
+    foreach ($produtos_config as $produto) {
+        try {
+            $sql = "SELECT data_liberacao_pdv FROM {$produto['tabela']} WHERE id_cliente = ? LIMIT 1";
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $stmt->bind_param("i", $cliente_id);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                if ($result->num_rows > 0) {
+                    $row = $result->fetch_assoc();
+                    $dataFormatada = '';
+                    
+                    // Tenta formatar a data se existir
+                    if (!empty($row['data_liberacao_pdv'])) {
+                        $dataObj = DateTime::createFromFormat('Y-m-d', $row['data_liberacao_pdv']);
+                        if (!$dataObj) {
+                            $dataObj = DateTime::createFromFormat('Y-m-d H:i:s', $row['data_liberacao_pdv']);
+                        }
+                        if ($dataObj) {
+                            $dataFormatada = $dataObj->format('d/m/Y');
+                        } else {
+                            $dataFormatada = $row['data_liberacao_pdv'];
+                        }
+                    }
+                    
+                    // Monta o HTML do produto com ícone
+                    $produtoHtml = '<div style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">';
+                    $produtoHtml .= '<img src="' . $produto['icone'] . '" alt="' . $produto['nome'] . '" width="30" height="30" style="flex-shrink: 0;">';
+                    if ($dataFormatada) {
+                        $produtoHtml .= '<span>' . $dataFormatada . '</span>';
+                    }
+                    $produtoHtml .= '</div>';
+                    
+                    $produtos[] = $produtoHtml;
+                }
+                $stmt->close();
+            }
+        } catch (Exception $e) {
+            // Ignora erros de tabela não existente
+            continue;
+        }
     }
-
-    $sql_pagseguro = "SELECT * FROM pagseguro WHERE id_cliente = $cliente_id";
-    $result_pagseguro = $conn->query($sql_pagseguro);
-    if ($result_pagseguro->num_rows > 0) {
-        $produtos[] = "<img src='../assets/images/logos/icone_pagseguro.png' alt='PagSeguro' width='30'>";
-    }
-
-    $sql_fgts = "SELECT * FROM fgts WHERE id_cliente = $cliente_id";
-    $result_fgts = $conn->query($sql_fgts);
-    if ($result_fgts->num_rows > 0) {
-        $produtos[] = "<img src='../assets/images/logos/icone_fgts.png' alt='FGTS' width='30'>";
-    }
-
-    $sql_soufacil = "SELECT * FROM soufacil WHERE id_cliente = $cliente_id";
-    $result_soufacil = $conn->query($sql_soufacil);
-    if ($result_soufacil->num_rows > 0) {
-        $produtos[] = "<img src='../assets/images/logos/icon_soufacil.png' alt='Sou Fácil' width='30'>";
-    }
-
-    $sql_fliper = "SELECT * FROM fliper WHERE id_cliente = $cliente_id";
-    $result_fliper = $conn->query($sql_fliper);
-    if ($result_fliper->num_rows > 0) {
-        $produtos[] = "<img src='../assets/images/logos/icon_flip.png' alt='Fliper' width='30'>";
-    }
-
-    $sql_parcela_facil = "SELECT * FROM parcela_facil WHERE id_cliente = $cliente_id";
-    $result_parcela_facil = $conn->query($sql_parcela_facil);
-    if ($result_parcela_facil->num_rows > 0) {
-        $produtos[] = "<img src='../assets/images/logos/icon_parcele.png' alt='Parcela Fácil' width='30'>";
-    }
-
-    $sql_boltcard = "SELECT * FROM boltcard WHERE id_cliente = $cliente_id";
-    $result_boltcard = $conn->query($sql_boltcard);
-    if ($result_boltcard->num_rows > 0) {
-        $produtos[] = "<img src='../assets/images/logos/icon_bolt.png' alt='BoltCard' width='30'>";
-    }
-
-    $sql_parcelex = "SELECT * FROM parcelex WHERE id_cliente = $cliente_id";
-    $result_parcelex = $conn->query($sql_parcelex);
-    if ($result_parcelex->num_rows > 0) {
-        $produtos[] = "<img src='../assets/images/logos/parcelex.svg' alt='Parcelex' width='30'>";
-    }
-
-    return implode(" ", $produtos);
+    
+    return !empty($produtos) ? implode('', $produtos) : 'N/A';
 }
 
 // Função para obter os representantes associados a um cliente
@@ -126,6 +133,55 @@ function getDataPDV($conn, $cliente_id)
     return 'N/A'; // Retorna 'N/A' se não houver data de PDV
 }
 
+// Função para obter as datas de cadastro nas financeiras de todos os produtos
+function getDatasCadastroFinanceira($conn, $cliente_id)
+{
+    $datas = [];
+    
+    // Array com produtos e seus nomes
+    $produtos = [
+        ['tabela' => 'brasil_card', 'nome' => 'Brasil Card'],
+        ['tabela' => 'parcelex', 'nome' => 'Parcelex'],
+        ['tabela' => 'fgts', 'nome' => 'FGTS'],
+        ['tabela' => 'pagseguro', 'nome' => 'PagSeguro'],
+        ['tabela' => 'soufacil', 'nome' => 'Sou Fácil'],
+        ['tabela' => 'fliper', 'nome' => 'Fliper'],
+        ['tabela' => 'parcela_facil', 'nome' => 'Parcela Fácil'],
+        ['tabela' => 'boltcard', 'nome' => 'BoltCard']
+    ];
+    
+    foreach ($produtos as $produto) {
+        try {
+            $sql = "SELECT data_liberacao_pdv FROM {$produto['tabela']} WHERE id_cliente = ? AND data_liberacao_pdv IS NOT NULL AND data_liberacao_pdv != '' LIMIT 1";
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $stmt->bind_param("i", $cliente_id);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                if ($row = $result->fetch_assoc() && !empty($row['data_liberacao_pdv'])) {
+                    // Tenta formatar a data
+                    $dataFormatada = DateTime::createFromFormat('Y-m-d', $row['data_liberacao_pdv']);
+                    if (!$dataFormatada) {
+                        $dataFormatada = DateTime::createFromFormat('Y-m-d H:i:s', $row['data_liberacao_pdv']);
+                    }
+                    if ($dataFormatada) {
+                        $datas[] = $produto['nome'] . " - " . $dataFormatada->format('d/m/Y');
+                    } else {
+                        // Se não conseguir formatar, exibe como está
+                        $datas[] = $produto['nome'] . " - " . $row['data_liberacao_pdv'];
+                    }
+                }
+                $stmt->close();
+            }
+        } catch (Exception $e) {
+            // Ignora erros de tabela não existente
+            continue;
+        }
+    }
+    
+    return !empty($datas) ? implode('<br>', $datas) : 'N/A';
+}
+
 // Configuração de paginação
 $limite = 10;
 $pagina = isset($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
@@ -135,56 +191,82 @@ $offset = ($pagina - 1) * $limite;
 $filtros = [];
 $parametros = [];
 
-// Verifica se o filtro padrão está ativo (exibir somente clientes com Brasil Card e sem PDV)
+// Filtro padrão: exibir somente clientes que não foram gerado PDV
+// Verifica se o filtro padrão não foi desativado
 if (empty($_GET['desativar_filtro_padrao'])) {
-    $filtros[] = "id IN (SELECT id_cliente FROM brasil_card WHERE pdv IS NULL OR pdv = '')";
+    // Busca clientes que têm Brasil Card mas não têm PDV preenchido
+    $filtros[] = "c.id IN (SELECT id_cliente FROM brasil_card WHERE (pdv IS NULL OR pdv = ''))";
 }
 
 // Aplicação de filtros adicionais se fornecidos
-if (!empty($_GET['cnpj'])) {
-    $filtros[] = "cnpj LIKE ?";
-    $parametros[] = "%" . $_GET['cnpj'] . "%";
+if (isset($_GET['cnpj']) && trim($_GET['cnpj']) !== '') {
+    $filtros[] = "c.cnpj LIKE ?";
+    $parametros[] = "%" . trim($_GET['cnpj']) . "%";
 }
-if (!empty($_GET['cpf'])) {
-    $filtros[] = "cpf LIKE ?";
-    $parametros[] = "%" . $_GET['cpf'] . "%";
+if (isset($_GET['cpf']) && trim($_GET['cpf']) !== '') {
+    $filtros[] = "c.adm_cpf LIKE ?";
+    $parametros[] = "%" . trim($_GET['cpf']) . "%";
 }
-if (!empty($_GET['nome_fantasia'])) {
-    $filtros[] = "nome_fantasia LIKE ?";
-    $parametros[] = "%" . $_GET['nome_fantasia'] . "%";
+if (isset($_GET['nome_fantasia']) && trim($_GET['nome_fantasia']) !== '') {
+    $filtros[] = "c.nome_fantasia LIKE ?";
+    $parametros[] = "%" . trim($_GET['nome_fantasia']) . "%";
 }
-if (!empty($_GET['razao_social'])) {
-    $filtros[] = "razao_social LIKE ?";
-    $parametros[] = "%" . $_GET['razao_social'] . "%";
+if (isset($_GET['razao_social']) && trim($_GET['razao_social']) !== '') {
+    $filtros[] = "c.razao_social LIKE ?";
+    $parametros[] = "%" . trim($_GET['razao_social']) . "%";
 }
-if (!empty($_GET['cidade'])) {
-    $filtros[] = "cidade LIKE ?";
-    $parametros[] = "%" . $_GET['cidade'] . "%";
+if (isset($_GET['cidade']) && trim($_GET['cidade']) !== '') {
+    $filtros[] = "c.cidade LIKE ?";
+    $parametros[] = "%" . trim($_GET['cidade']) . "%";
 }
-if (!empty($_GET['data_inicial']) && !empty($_GET['data_final'])) {
-    $filtros[] = "data_register BETWEEN ? AND ?";
-    $parametros[] = $_GET['data_inicial'];
-    $parametros[] = $_GET['data_final'];
+// Filtro por data de cadastro no sistema
+if (isset($_GET['data_inicial']) && isset($_GET['data_final']) && trim($_GET['data_inicial']) !== '' && trim($_GET['data_final']) !== '') {
+    // Adiciona hora 23:59:59 na data final para incluir o dia inteiro
+    $data_inicial = trim($_GET['data_inicial']) . ' 00:00:00';
+    $data_final = trim($_GET['data_final']) . ' 23:59:59';
+    $filtros[] = "c.data_register BETWEEN ? AND ?";
+    $parametros[] = $data_inicial;
+    $parametros[] = $data_final;
 }
-if (!empty($_GET['representante'])) {
-    $filtros[] = "id IN (SELECT id_cliente FROM cliente_representante WHERE id_representante IN (SELECT id FROM representante WHERE nome LIKE ?))";
-    $parametros[] = "%" . $_GET['representante'] . "%";
+
+// Filtro por data de cadastro do produto (data_liberacao_pdv)
+if (isset($_GET['produto_data']) && trim($_GET['produto_data']) !== '' && 
+    isset($_GET['data_produto_inicial']) && isset($_GET['data_produto_final']) && 
+    trim($_GET['data_produto_inicial']) !== '' && trim($_GET['data_produto_final']) !== '') {
+    $produtoTabela = trim($_GET['produto_data']);
+    // Sanitiza o nome da tabela para evitar SQL injection
+    $tabelasPermitidas = ['brasil_card', 'parcelex', 'fgts', 'pagseguro', 'soufacil', 'fliper', 'parcela_facil', 'boltcard'];
+    if (in_array($produtoTabela, $tabelasPermitidas)) {
+        $data_produto_inicial = trim($_GET['data_produto_inicial']);
+        $data_produto_final = trim($_GET['data_produto_final']);
+        $filtros[] = "c.id IN (SELECT id_cliente FROM $produtoTabela WHERE data_liberacao_pdv BETWEEN ? AND ?)";
+        $parametros[] = $data_produto_inicial;
+        $parametros[] = $data_produto_final;
+    }
 }
-if (!empty($_GET['pdv'])) {
-    $filtros[] = "id IN (SELECT id_cliente FROM brasil_card WHERE pdv LIKE ?)";
-    $parametros[] = "%" . $_GET['pdv'] . "%";
+if (isset($_GET['representante']) && trim($_GET['representante']) !== '') {
+    $filtros[] = "c.id IN (SELECT id_cliente FROM cliente_representante WHERE id_representante IN (SELECT id FROM representante WHERE nome LIKE ?))";
+    $parametros[] = "%" . trim($_GET['representante']) . "%";
+}
+if (isset($_GET['pdv']) && trim($_GET['pdv']) !== '') {
+    $filtros[] = "c.id IN (SELECT id_cliente FROM brasil_card WHERE pdv LIKE ?)";
+    $parametros[] = "%" . trim($_GET['pdv']) . "%";
 }
 
 
 
 // Modify the product filter
-if (!empty($_GET['produto'])) {
-    $produtoTabela = $_GET['produto'];
-    $filtros[] = "id IN (SELECT id_cliente FROM $produtoTabela WHERE id_cliente = cliente.id)";
+if (isset($_GET['produto']) && trim($_GET['produto']) !== '') {
+    $produtoTabela = trim($_GET['produto']);
+    // Sanitiza o nome da tabela para evitar SQL injection
+    $tabelasPermitidas = ['brasil_card', 'parcelex', 'fgts', 'pagseguro', 'soufacil', 'fliper', 'parcela_facil', 'boltcard'];
+    if (in_array($produtoTabela, $tabelasPermitidas)) {
+        $filtros[] = "c.id IN (SELECT id_cliente FROM $produtoTabela)";
+    }
 }
 
 // Modify the status filter 
-if (!empty($_GET['status']) && !empty($_GET['produto'])) {
+if (isset($_GET['status']) && trim($_GET['status']) !== '' && isset($_GET['produto']) && trim($_GET['produto']) !== '') {
     $produtoTabela = "";
     if ($_GET['produto'] === "soufacil") {
         $produtoTabela = "status_processo_soufacil";
@@ -195,7 +277,7 @@ if (!empty($_GET['status']) && !empty($_GET['produto'])) {
     }
 
     if ($produtoTabela) {
-        $filtros[] = "id IN (
+        $filtros[] = "c.id IN (
             SELECT id_cliente 
             FROM $produtoTabela 
             WHERE status_atual = ? 
@@ -226,11 +308,13 @@ if (!$stmt) {
 }*/
 
 
-$sql = "SELECT * FROM cliente";
+$sql = "SELECT c.*, u.nome as usuario_cadastro 
+        FROM cliente c 
+        LEFT JOIN usuario u ON c.id_user = u.id";
 if (!empty($filtros)) {
     $sql .= " WHERE " . implode(" AND ", $filtros);
 }
-$sql .= " ORDER BY id DESC LIMIT $limite OFFSET $offset";
+$sql .= " ORDER BY c.id DESC LIMIT $limite OFFSET $offset";
 
 $stmt = $conn->prepare($sql);
 if (!$stmt) {
@@ -249,7 +333,7 @@ $stmt->execute();
 //$stmt->execute();
 $result = $stmt->get_result();
 
-$totalRegistrosQuery = "SELECT COUNT(*) as total FROM cliente";
+$totalRegistrosQuery = "SELECT COUNT(*) as total FROM cliente c";
 if (!empty($filtros)) {
     $totalRegistrosQuery .= " WHERE " . implode(" AND ", $filtros);
 }
@@ -343,10 +427,13 @@ $status_list_brasilcard = [
             <a href="excel.php<?= !empty($_GET) ? '?' . http_build_query($_GET) : '' ?>" class="btn btn-success mb-3">
                 <i class="fas fa-download"></i> Exportar Excel
             </a>
+            <button class="btn btn-info mb-3" data-bs-toggle="modal" data-bs-target="#importExcelModal">
+                <i class="fas fa-upload"></i> Importar Excel
+            </button>
 
             <!-- Modal de Filtros -->
             <div class="modal fade" id="filtroModal" tabindex="-1" aria-labelledby="filtroModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
+                <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <form method="GET">
                             <div class="modal-header">
@@ -354,36 +441,89 @@ $status_list_brasilcard = [
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
-                                <div class="form-check mb-3">
+                                <div class="form-check mb-4">
                                     <input type="checkbox" class="form-check-input" id="desativarFiltroPadrao" name="desativar_filtro_padrao" value="1" <?php echo isset($_GET['desativar_filtro_padrao']) ? 'checked' : ''; ?>>
                                     <label class="form-check-label" for="desativarFiltroPadrao">Desativar filtro padrão (exibir todos os clientes)</label>
                                 </div>
-                                <div class="mb-3">
-                                    <input type="text" name="cnpj" class="form-control" placeholder="CNPJ" value="<?php echo $_GET['cnpj'] ?? ''; ?>">
+                                
+                                <h6 class="mb-3 fw-semibold text-primary">Informações Básicas</h6>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">CNPJ</label>
+                                        <input type="text" name="cnpj" class="form-control" placeholder="CNPJ" value="<?php echo $_GET['cnpj'] ?? ''; ?>">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">CPF</label>
+                                        <input type="text" name="cpf" class="form-control" placeholder="CPF" value="<?php echo $_GET['cpf'] ?? ''; ?>">
+                                    </div>
                                 </div>
-                                <div class="mb-3">
-                                    <input type="text" name="cpf" class="form-control" placeholder="CPF" value="<?php echo $_GET['cpf'] ?? ''; ?>">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Nome Fantasia</label>
+                                        <input type="text" name="nome_fantasia" class="form-control" placeholder="Nome Fantasia" value="<?php echo $_GET['nome_fantasia'] ?? ''; ?>">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Razão Social</label>
+                                        <input type="text" name="razao_social" class="form-control" placeholder="Razão Social" value="<?php echo $_GET['razao_social'] ?? ''; ?>">
+                                    </div>
                                 </div>
-                                <div class="mb-3">
-                                    <input type="text" name="nome_fantasia" class="form-control" placeholder="Nome Fantasia" value="<?php echo $_GET['nome_fantasia'] ?? ''; ?>">
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Cidade</label>
+                                        <input type="text" name="cidade" class="form-control" placeholder="Cidade" value="<?php echo $_GET['cidade'] ?? ''; ?>">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Representante</label>
+                                        <input type="text" name="representante" class="form-control" placeholder="Representante" value="<?php echo $_GET['representante'] ?? ''; ?>">
+                                    </div>
                                 </div>
-                                <div class="mb-3">
-                                    <input type="text" name="razao_social" class="form-control" placeholder="Razão Social" value="<?php echo $_GET['razao_social'] ?? ''; ?>">
-                                </div>
-                                <div class="mb-3">
-                                    <input type="text" name="cidade" class="form-control" placeholder="Cidade" value="<?php echo $_GET['cidade'] ?? ''; ?>">
-                                </div>
-                                <div class="mb-3">
-                                    <input type="text" name="representante" class="form-control" placeholder="Representante" value="<?php echo $_GET['representante'] ?? ''; ?>">
-                                </div>
-                                <div class="mb-3">
+                                <div class="mb-4">
+                                    <label class="form-label">PDV</label>
                                     <input type="text" name="pdv" class="form-control" placeholder="PDV" value="<?php echo $_GET['pdv'] ?? ''; ?>">
                                 </div>
-                                <div class="mb-3">
-                                    <input type="date" name="data_inicial" class="form-control" value="<?php echo $_GET['data_inicial'] ?? ''; ?>">
+                                
+                                <hr class="my-4">
+                                
+                                <h6 class="mb-3 fw-semibold text-primary">Filtros por Data</h6>
+                                <div class="mb-4">
+                                    <label class="form-label fw-semibold">Data de Cadastro no Sistema</label>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label class="form-label small text-muted">Data Inicial</label>
+                                            <input type="date" name="data_inicial" class="form-control" value="<?php echo $_GET['data_inicial'] ?? ''; ?>">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small text-muted">Data Final</label>
+                                            <input type="date" name="data_final" class="form-control" value="<?php echo $_GET['data_final'] ?? ''; ?>">
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="mb-3">
-                                    <input type="date" name="data_final" class="form-control" value="<?php echo $_GET['data_final'] ?? ''; ?>">
+                                <div class="mb-4">
+                                    <label class="form-label fw-semibold">Data de Cadastro do Produto</label>
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <label class="form-label small text-muted">Produto</label>
+                                            <select name="produto_data" class="form-control">
+                                                <option value="">-- Selecione o Produto --</option>
+                                                <option value="brasil_card" <?php echo (isset($_GET['produto_data']) && $_GET['produto_data'] == 'brasil_card') ? 'selected' : ''; ?>>Brasil Card</option>
+                                                <option value="parcelex" <?php echo (isset($_GET['produto_data']) && $_GET['produto_data'] == 'parcelex') ? 'selected' : ''; ?>>Parcelex</option>
+                                                <option value="fgts" <?php echo (isset($_GET['produto_data']) && $_GET['produto_data'] == 'fgts') ? 'selected' : ''; ?>>FGTS</option>
+                                                <option value="pagseguro" <?php echo (isset($_GET['produto_data']) && $_GET['produto_data'] == 'pagseguro') ? 'selected' : ''; ?>>PagSeguro</option>
+                                                <option value="soufacil" <?php echo (isset($_GET['produto_data']) && $_GET['produto_data'] == 'soufacil') ? 'selected' : ''; ?>>Sou Fácil</option>
+                                                <option value="fliper" <?php echo (isset($_GET['produto_data']) && $_GET['produto_data'] == 'fliper') ? 'selected' : ''; ?>>Fliper</option>
+                                                <option value="parcela_facil" <?php echo (isset($_GET['produto_data']) && $_GET['produto_data'] == 'parcela_facil') ? 'selected' : ''; ?>>Parcela Fácil</option>
+                                                <option value="boltcard" <?php echo (isset($_GET['produto_data']) && $_GET['produto_data'] == 'boltcard') ? 'selected' : ''; ?>>BoltCard</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small text-muted">Data Inicial</label>
+                                            <input type="date" name="data_produto_inicial" class="form-control" value="<?php echo $_GET['data_produto_inicial'] ?? ''; ?>">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small text-muted">Data Final</label>
+                                            <input type="date" name="data_produto_final" class="form-control" value="<?php echo $_GET['data_produto_final'] ?? ''; ?>">
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="mb-3">
                                     <select name="produto" class="form-control">
@@ -431,6 +571,41 @@ $status_list_brasilcard = [
                 </div>
             </div>
 
+            <!-- Modal de Importação de Excel -->
+            <div class="modal fade" id="importExcelModal" tabindex="-1" aria-labelledby="importExcelModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="importExcelModalLabel">Importar Excel/CSV</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form action="import_excel.php" method="POST" enctype="multipart/form-data" id="importExcelForm">
+                            <div class="modal-body">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> 
+                                    <strong>Instruções:</strong><br>
+                                    • Formatos aceitos: .xlsx, .xls, .csv<br>
+                                    • Tamanho máximo: 10MB<br>
+                                    • O arquivo deve seguir o formato do Excel exportado
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="arquivo_excel" class="form-label">Selecionar Arquivo</label>
+                                    <input type="file" class="form-control" id="arquivo_excel" name="arquivo_excel" accept=".xlsx,.xls,.csv" required>
+                                    <div class="form-text">Selecione um arquivo Excel ou CSV para importar</div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-upload"></i> Importar Arquivo
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             <h6 class="fw-semibold mb-3">Total de resultados encontrados: <?php echo $totalRegistros; ?></h6>
 
 
@@ -438,30 +613,38 @@ $status_list_brasilcard = [
             <table class="table table-striped mt-3">
                 <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Nome Fantasia</th>
-                        <th>Cidade</th>
-                        <th>Representante</th>
+                        <th>Rep.</th>
                         <th>PDV</th>
                         <th>Produtos</th>
-                        <th>Data Cadastro</th>
-                        <th>Data PDV</th>
+                        <th>Data Plataforma</th>
                         <th>Ações</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php while ($row = $result->fetch_assoc()) { ?>
                         <tr>
-                            <td><?php echo $row['id']; ?></td>
-                            <td><?php echo $row['nome_fantasia']; ?></td>
-                            <td><?php echo $row['cidade']; ?></td>
+                            <td style="white-space: normal; line-height: 1.6;">
+                                <strong><?php echo $row['nome_fantasia']; ?></strong>
+                                <br><small style="color: #666;"><?php echo $row['cidade']; ?><?php echo !empty($row['uf']) ? '/' . $row['uf'] : ''; ?></small>
+                            </td>
                             <td><?php echo getRepresentantes($conn, $row['id']); ?></td>
                             <td><?php echo getPDV($conn, $row['id']); ?></td>
-                            <td><?php echo getProdutos($conn, $row['id']); ?></td>
-                            <td><?php echo getDataExibicao($conn, $row['id'], $row['data_register']); ?></td>
-                            <td><?php echo getDataPDV($conn, $row['id']); ?></td>
+                            <td style="white-space: normal; line-height: 1.6; font-size: 0.9em;"><?php echo getProdutos($conn, $row['id']); ?></td>
+                            <td style="white-space: normal; line-height: 1.6;">
+                                <?php echo getDataExibicao($conn, $row['id'], $row['data_register']); ?>
+                                <br><small style="color: #666;">Cad por: <?php 
+                                    $nomeCompleto = $row['usuario_cadastro'] ?? 'N/A';
+                                    if ($nomeCompleto != 'N/A') {
+                                        $primeiroNome = explode(' ', $nomeCompleto)[0];
+                                        echo $primeiroNome;
+                                    } else {
+                                        echo 'N/A';
+                                    }
+                                ?></small>
+                            </td>
                             <td>
-                                <a href="detalhes.php?id=<?php echo $row['id']; ?>" class="btn btn-info">Detalhes</a>
+                                <a href="clientes/detalhes.php?id=<?php echo $row['id']; ?>" class="btn btn-info">Detalhes</a>
                             </td>
                         </tr>
                     <?php } ?>
