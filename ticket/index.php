@@ -337,6 +337,31 @@ if ($stmt_retorno) {
                                 <?php if ($temNotificacao): ?>
                                     <span class="badge bg-danger">!</span>
                                 <?php endif; ?>
+                                <?php if ($ticket['data_retorno']): ?>
+                                    <?php
+                                    $dataRetorno = new DateTime($ticket['data_retorno']);
+                                    $agora = new DateTime();
+                                    $minutosRestantes = ($dataRetorno->getTimestamp() - $agora->getTimestamp()) / 60;
+                                    $badgeClass = '';
+                                    $badgeIcon = '';
+                                    if ($minutosRestantes < 0) {
+                                        $badgeClass = 'bg-danger';
+                                        $badgeIcon = '⚠️';
+                                    } elseif ($minutosRestantes <= 60) {
+                                        $badgeClass = 'bg-danger';
+                                        $badgeIcon = '🔴';
+                                    } elseif ($minutosRestantes <= 1440) {
+                                        $badgeClass = 'bg-warning';
+                                        $badgeIcon = '⏰';
+                                    } else {
+                                        $badgeClass = 'bg-info';
+                                        $badgeIcon = '📅';
+                                    }
+                                    ?>
+                                    <span class="badge <?php echo $badgeClass; ?>" title="Retorno agendado: <?php echo date('d/m/Y H:i', strtotime($ticket['data_retorno'])); ?>">
+                                        <?php echo $badgeIcon; ?>
+                                    </span>
+                                <?php endif; ?>
                             </td>
                             <td><?php echo htmlspecialchars($ticket['nome_fantasia']); ?></td>
                             <td><?php echo htmlspecialchars($ticket['titulo']); ?></td>
