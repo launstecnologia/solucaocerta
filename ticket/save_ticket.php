@@ -129,5 +129,4 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     echo "<script>alert('Método inválido.'); window.location.href='" . ticket_url('index.php') . "';</script>";
     exit;
 }
-}
 ?>
