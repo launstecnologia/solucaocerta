@@ -11,61 +11,16 @@
                     <input type="hidden" name="id_cliente" value="<?php echo $id_cliente; ?>">
                     <input type="hidden" name="update_parcelex" value="1">
 
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="referencia1" class="form-label">Referência 1</label>
-                                <input type="text" class="form-control" name="referencia1" id="referencia1" value="<?php echo $parcelex['referencia1'] ?? ''; ?>">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="telefone1" class="form-label">Telefone 1</label>
-                                <input type="text" class="form-control" name="telefone1" id="telefone1" value="<?php echo $parcelex['telefone1'] ?? ''; ?>">
-                            </div>
-                        </div>
+                    <div class="mb-3">
+                        <label for="porcentagem" class="form-label">Taxa</label>
+                        <input type="text" class="form-control" name="porcentagem" id="porcentagem" value="<?php echo $parcelex['porcentagem'] ?? ''; ?>" placeholder="Ex: 2,5%">
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="referencia2" class="form-label">Referência 2</label>
-                                <input type="text" class="form-control" name="referencia2" id="referencia2" value="<?php echo $parcelex['referencia2'] ?? ''; ?>">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="telefone2" class="form-label">Telefone 2</label>
-                                <input type="text" class="form-control" name="telefone2" id="telefone2" value="<?php echo $parcelex['telefone2'] ?? ''; ?>">
-                            </div>
-                        </div>
-                    </div>
-                    
                     <div class="mb-3">
-                        <label for="private" class="form-label">Private</label>
-                        <input type="text" class="form-control" name="private" id="private" value="<?php echo $parcelex['private'] ?? ''; ?>">
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="porcentagem" class="form-label">Porcentagem</label>
-                        <input type="text" class="form-control" name="porcentagem" id="porcentagem" value="<?php echo $parcelex['porcentagem'] ?? ''; ?>">
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="pdv" class="form-label">PDV</label>
-                        <input type="text" class="form-control" name="pdv" id="pdv" value="<?php echo $parcelex['pdv'] ?? ''; ?>">
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="data_liberacao_pdv" class="form-label">Data Liberação PDV</label>
+                        <label for="data_liberacao_pdv" class="form-label">Data</label>
                         <input type="date" class="form-control" name="data_liberacao_pdv" id="data_liberacao_pdv" value="<?php echo $parcelex['data_liberacao_pdv'] ?? ''; ?>">
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="cadastro_financeira" class="form-label">Cadastro na Financeira</label>
-                        <input type="text" class="form-control" name="cadastro_financeira" id="cadastro_financeira" value="<?php echo $parcelex['cadastro_financeira'] ?? ''; ?>">
-                    </div>
-                    
+
                     <div class="mb-3">
                         <label for="status" class="form-label">Status</label>
                         <select class="form-select" name="status" id="status">
@@ -75,9 +30,23 @@
                             <option value="Cancelado" <?php echo (isset($parcelex['status']) && $parcelex['status'] == 'Cancelado') ? 'selected' : ''; ?>>Cancelado</option>
                         </select>
                     </div>
-                    
+
                     <div class="mb-3">
-                        <label for="obs" class="form-label">Observações</label>
+                        <label for="adesao" class="form-label">Adesão</label>
+                        <select class="form-select" name="adesao" id="adesao">
+                            <option value="">Selecione</option>
+                            <option value="Sim" <?php echo (isset($parcelex['adesao']) && $parcelex['adesao'] === 'Sim') ? 'selected' : ''; ?>>Sim</option>
+                            <option value="Não" <?php echo (isset($parcelex['adesao']) && $parcelex['adesao'] === 'Não') ? 'selected' : ''; ?>>Não</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="valor" class="form-label">Valor</label>
+                        <input type="text" class="form-control" name="valor" id="valor" value="<?php echo isset($parcelex['valor']) && $parcelex['valor'] !== '' && $parcelex['valor'] !== null ? htmlspecialchars($parcelex['valor']) : ''; ?>" placeholder="Ex: 1.500,00">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="obs" class="form-label">Observação</label>
                         <textarea class="form-control" name="obs" id="obs" rows="3"><?php echo $parcelex['obs'] ?? ''; ?></textarea>
                     </div>
                 </form>
@@ -89,4 +58,3 @@
         </div>
     </div>
 </div>
-

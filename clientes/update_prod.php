@@ -256,24 +256,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_boltcard'])) {
     echo "<script>alert('Dados do BoltCard atualizados com sucesso.'); window.location.href='detalhes.php?id=$id_cliente';</script>";
 }
 
-// Atualizar Parcelex
+// Atualizar Parcelex (apenas: taxa, data, status, observação, adesão, valor)
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update_parcelex'])) {
-    $id_cliente = $_POST['id_cliente'];
-    $referencia1 = $_POST['referencia1'] ?? '';
-    $telefone1 = $_POST['telefone1'] ?? '';
-    $referencia2 = $_POST['referencia2'] ?? '';
-    $telefone2 = $_POST['telefone2'] ?? '';
-    $private = $_POST['private'] ?? '';
+    $id_cliente = (int)($_POST['id_cliente'] ?? 0);
     $porcentagem = $_POST['porcentagem'] ?? '';
-    $pdv = $_POST['pdv'] ?? '';
     $data_liberacao_pdv = $_POST['data_liberacao_pdv'] ?? '';
-    $cadastro_financeira = $_POST['cadastro_financeira'] ?? '';
     $status = $_POST['status'] ?? 'Pendente';
     $obs = $_POST['obs'] ?? '';
+    $adesao = $_POST['adesao'] ?? '';
+    $valor = $_POST['valor'] ?? '';
 
-    $sql = "UPDATE parcelex SET referencia1=?, telefone1=?, referencia2=?, telefone2=?, private=?, porcentagem=?, pdv=?, data_liberacao_pdv=?, cadastro_financeira=?, status=?, obs=? WHERE id_cliente=?";
-    $params = [$referencia1, $telefone1, $referencia2, $telefone2, $private, $porcentagem, $pdv, $data_liberacao_pdv, $cadastro_financeira, $status, $obs, $id_cliente];
-    $types = "sssssssssssi";
+    $sql = "UPDATE parcelex SET porcentagem=?, data_liberacao_pdv=?, status=?, obs=?, adesao=?, valor=? WHERE id_cliente=?";
+    $params = [$porcentagem, $data_liberacao_pdv, $status, $obs, $adesao, $valor, $id_cliente];
+    $types = "ssssssi";
 
     updateProduct($conn, $sql, $params, $types);
     echo "<script>alert('Dados do Parcelex atualizados com sucesso.'); window.location.href='detalhes.php?id=$id_cliente';</script>";

@@ -52,6 +52,10 @@
                             <input class="form-check-input" type="checkbox" name="produtos[]" value="boltcard" id="boltcard">
                             <label class="form-check-label" for="boltcard">BoltCard</label>
                         </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="produtos[]" value="parcelex" id="parcelex">
+                            <label class="form-check-label" for="parcelex">Parcelex</label>
+                        </div>
                     </div>
 
                     <!-- Upload do arquivo -->

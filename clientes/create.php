@@ -368,16 +368,10 @@ while ($row = $result->fetch_assoc()) {
                         <label><input type="checkbox" name="brasil_card"> Brasil Card</label>
                     </div>
                     <div class="col-md-2">
-                        <label><input type="checkbox" name="fgts"> FGTS</label>
-                    </div>
-                    <div class="col-md-2">
                         <label><input type="checkbox" name="pagseguro"> PagSeguro</label>
                     </div>
                     <div class="col-md-2">
                         <label><input type="checkbox" name="soufacil"> Sou Fácil</label>
-                    </div>
-                    <div class="col-md-2">
-                        <label><input type="checkbox" name="fliper"> Fliper</label>
                     </div>
                     <div class="col-md-2">
                         <label><input type="checkbox" name="parcela_facil"> Parcela Fácil</label>
